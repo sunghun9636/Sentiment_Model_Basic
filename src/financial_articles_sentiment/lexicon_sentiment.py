@@ -58,4 +58,6 @@ class Sentiment(object):
 
         return is_prefixed_by_negation
 
-    
+    # main function to allocate sentiment value to the text
+    def assign_sentiment:
+        
