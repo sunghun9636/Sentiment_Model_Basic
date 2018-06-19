@@ -23,7 +23,7 @@ class Lexicon_sentiment(object):
             self.load_negations(negations_filename)
 
         # a list of words to be skipped when checking prefixed negation words
-        self.__negation_skip = {'a', 'an', 'so', 'too'}
+        self.negation_skip = {'a', 'an', 'so', 'too'}
 
     # transform the input argument into list -> to be used in init function
     @staticmethod
@@ -63,7 +63,7 @@ class Lexicon_sentiment(object):
         # Return True if index != 0 and tokens[i-1] is in self.negations else False
 
         prev_index = token_index - 1
-        if tokens[prev_index] in self.__negation_skip:
+        if tokens[prev_index] in self.negation_skip:
             prev_index -= 1 # if the previous token is skip word, shift the index by -1
 
         is_prefixed_by_negation = False
@@ -75,11 +75,10 @@ class Lexicon_sentiment(object):
 
     # main function to allocate sentiment value to the text
     def assign_sentiment(self, text):
-        # clean up the text first
+        # clean up the text first and change it into uppercase letters
         text_clean = re.sub(r'[^\w ]', ' ', text.upper())
         useful_tokens = text_clean.split()
-
-        # useful_tokens = [word for word in text_clean if word not in stopwords.words('english')]
+        useful_tokens = [word for word in useful_tokens if word not in stopwords.words('english')]
 
         scores = defaultdict(float) # sentiment scores to be stored
         words = defaultdict(list) # positive and negative words detected to be stored
@@ -104,7 +103,7 @@ class Lexicon_sentiment(object):
 def main():
     sentiment = Lexicon_sentiment()
 
-    article = "company is doing really not abnormal compared to last year"
+    article = "company is doing really abnormal compared to last year"
 
     result = sentiment.assign_sentiment(article)
     print(result)
