@@ -6,21 +6,34 @@ import csv
 
 class Lexicon_sentiment(object):
     # Set up the initial variables including world list and negation word
-    def __init__(self, word_list = None, negation = None):
-        if word_list is None and negation is None:
+    def __init__(self, word_list = None, negation = None, intensifier = None):
+        if word_list is None and negation is None and intensifier is None:
             base_dir = os.path.dirname(__file__)
             # financial sentiment word list - positive and negative words only
             word_list = os.path.join(base_dir, './word_list/LM_word_list.csv')
             # list of negation words
             negation = os.path.join(base_dir, './word_list/negation_words.csv')
+            # intensifier list with its factor values
+            intensifier = os.path.join(base_dir, './word_list/intensifier.csv')
 
         self.word_list = {}
         self.negations = set()
+        self.intensifier = {}
 
         for wl_filename in self.__to_arg_list(word_list):
             self.load_word_list(wl_filename)
         for negations_filename in self.__to_arg_list(negation):
             self.load_negations(negations_filename)
+
+        # load intensifer (TODO: refactor the function!)
+        with open(intensifier, 'r') as f:
+            has_header = csv.Sniffer().has_header(f.read(1024))
+            f.seek(0) # rewind
+            reader = csv.reader(f)
+            # skip header row
+            next(reader)
+            temp = {row[0]: float(row[1]) for row in reader}
+        self.intensifier.update(temp)
 
         # a list of words to be skipped when checking prefixed negation words
         self.negation_skip = {'a', 'an', 'so', 'too'}
@@ -73,6 +86,16 @@ class Lexicon_sentiment(object):
 
         return is_prefixed_by_negation
 
+    # function to return the impact of intensifier prior to the current word
+    def intensified_by(self, token_index, tokens):
+        prev_word = tokens[token_index -1]
+        factor = 1 # default output
+
+        if prev_word in self.intensifier:
+            factor = self.intensifier[prev_word]
+
+        return factor
+
     # main function to allocate sentiment value to the text
     def assign_sentiment(self, text):
         # clean up the text first and change it into uppercase letters
@@ -86,10 +109,11 @@ class Lexicon_sentiment(object):
 
         for i, token in enumerate(useful_tokens):
             is_prefixed_by_negation = self.is_prefixed_by_negation(i, useful_tokens)
+            intensified_by = self.intensified_by(i, useful_tokens)
 
             # if the word is in the word list and not prefixed by negation word:
             if token in self.word_list and not is_prefixed_by_negation:
-                score = self.word_list[token]
+                score = self.word_list[token] * intensified_by
                 score_type = 'negative' if score < 0 else 'positive'
                 scores[score_type] += score
                 words[score_type].append(token)
@@ -103,7 +127,7 @@ class Lexicon_sentiment(object):
 def main():
     sentiment = Lexicon_sentiment()
 
-    article = "company is doing really abnormal compared to last year"
+    article = "company is doing quite abnormal compared to last year"
 
     result = sentiment.assign_sentiment(article)
     print(result)
