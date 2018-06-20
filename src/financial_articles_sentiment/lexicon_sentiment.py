@@ -6,13 +6,13 @@ import csv
 
 class Lexicon_sentiment(object):
     # Set up the initial variables including world list and negation word
-    def __init__(self, word_list = None, negation = None, intensifier = None):
-        if word_list is None and negation is None and intensifier is None:
+    def __init__(self, word_list = None, negations = None, intensifier = None):
+        if word_list is None and negations is None and intensifier is None:
             base_dir = os.path.dirname(__file__)
             # financial sentiment word list - positive and negative words only
             word_list = os.path.join(base_dir, './word_list/LM_word_list.csv')
             # list of negation words
-            negation = os.path.join(base_dir, './word_list/negation_words.csv')
+            negations = os.path.join(base_dir, './word_list/negation_words.csv')
             # intensifier list with its factor values
             intensifier = os.path.join(base_dir, './word_list/intensifier.csv')
 
@@ -20,21 +20,13 @@ class Lexicon_sentiment(object):
         self.negations = set()
         self.intensifier = {}
 
+        # load word list (can put multiple of them if needed)
         for wl_filename in self.__to_arg_list(word_list):
-            self.load_word_list(wl_filename)
-        for negations_filename in self.__to_arg_list(negation):
-            self.load_negations(negations_filename)
-
-        # load intensifer (TODO: refactor the function!)
-        with open(intensifier, 'r') as f:
-            has_header = csv.Sniffer().has_header(f.read(1024))
-            f.seek(0) # rewind
-            reader = csv.reader(f)
-            # skip header row
-            next(reader)
-            temp = {row[0]: float(row[1]) for row in reader}
-        self.intensifier.update(temp)
-
+            self.load_word_list(wl_filename, self.word_list)
+        # load negation words
+        self.load_negations(negations)
+        # load intensifier
+        self.load_word_list(intensifier, self.intensifier)
         # a list of words to be skipped when checking prefixed negation words
         self.negation_skip = {'a', 'an', 'so', 'too'}
 
@@ -59,22 +51,22 @@ class Lexicon_sentiment(object):
             negations = set([row[0] for row in reader])
         self.negations = negations
 
-    def load_word_list(self, filename):
+    # helper function to load word list with its numerical values as well
+    # numerical value can be intensifier factor, sentiment value, etc
+    def load_word_list(self, filename, destination):
         with open(filename, 'r') as f:
             has_header = csv.Sniffer().has_header(f.read(1024))
             f.seek(0) # rewind
             reader = csv.reader(f)
-            if has_header:
-                next(reader)  # skip header row
+            next(reader)  # skip header row
 
             word_list = {row[0]: float(row[1]) for row in reader}
-        self.word_list.update(word_list)
+        destination.update(word_list)
 
-    # function to check if the current word is prefixed by a negation word or not
+    # function to check if the current word is prefixed by a negations  word or not
     # it is to be used to flip the Sentiment if needed
+    # Return True if index != 0 and tokens[i-1] is in self.negations else False
     def is_prefixed_by_negation(self, token_index, tokens):
-        # Return True if index != 0 and tokens[i-1] is in self.negations else False
-
         prev_index = token_index - 1
         if tokens[prev_index] in self.negation_skip:
             prev_index -= 1 # if the previous token is skip word, shift the index by -1
@@ -104,22 +96,23 @@ class Lexicon_sentiment(object):
         useful_tokens = [word for word in useful_tokens if word not in stopwords.words('english')]
 
         scores = defaultdict(float) # sentiment scores to be stored
-        words = defaultdict(list) # positive and negative words detected to be stored
+        # words = defaultdict(list) # positive and negative words detected to be stored
         comparative = 0
 
         for i, token in enumerate(useful_tokens):
             is_prefixed_by_negation = self.is_prefixed_by_negation(i, useful_tokens)
             intensified_by = self.intensified_by(i, useful_tokens)
 
-            # if the word is in the word list and not prefixed by negation word:
+            # if the word is in the word list and not prefixed by negations word:
             if token in self.word_list and not is_prefixed_by_negation:
                 score = self.word_list[token] * intensified_by
                 score_type = 'negative' if score < 0 else 'positive'
                 scores[score_type] += score
-                words[score_type].append(token)
+                # words[score_type].append(token)
 
         if len(useful_tokens) > 0:
             # calculate comparative score / result to output
+            # TODO: apply better normalisation method
             comparative = (scores['positive'] + scores['negative']) / len(useful_tokens)
 
         return comparative
@@ -127,7 +120,7 @@ class Lexicon_sentiment(object):
 def main():
     sentiment = Lexicon_sentiment()
 
-    article = "company is doing quite abnormal compared to last year"
+    article = "company is doing slightly abnormal compared to last year"
 
     result = sentiment.assign_sentiment(article)
     print(result)
