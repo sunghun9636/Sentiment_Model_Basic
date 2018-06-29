@@ -11,7 +11,7 @@ from nltk.stem import LancasterStemmer, WordNetLemmatizer
 # to be used to filter paragraphs stating factual numbers only
 def is_numerical(text):
     count = 0 # counter for numerical figures / expressions
-    maximum_numericals = 5 # TODO: change the 'n' to appropriate number
+    maximum_numericals = 10 # TODO: change the 'n' to appropriate number
     words = nltk.word_tokenize(text)
     for word in words:
         if word.isdigit():
@@ -83,6 +83,7 @@ def preprocess(text, company_name):
         if not is_numerical(paragraph):
             non_numerical_paragraphs.append(paragraph)
     # b. remove paragraph that doesn't mention the company at all
+    # b. remove the whole article if it is a clickbait
     useful_paragraphs = []
     for paragraph in non_numerical_paragraphs:
         if has_company_name(paragraph, company_name):
@@ -111,7 +112,7 @@ def preprocess(text, company_name):
     return words
 
 if __name__ == '__main__':
-    text = "Facebook is doing really poorly this year.\n Also, its stock price has dropped by 5%, ..."
+    text = "Facebook is doing really poorly this year.\n\n Also, its stock price has dropped by 5%, ... Facebook"
     company_name = "Facebook"
     words = preprocess(text, company_name)
     for word in words:

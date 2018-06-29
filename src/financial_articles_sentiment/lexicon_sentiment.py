@@ -136,6 +136,6 @@ def main():
 
     result = sentiment.assign_sentiment(article)
     print(result)
-    
+
 if __name__ == '__main__':
     main()
